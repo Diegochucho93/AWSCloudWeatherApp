@@ -167,6 +167,22 @@ Retrieves the last 10 weather searches from the database.
 - Verify database credentials in `.env` file
 - Check if the database exists: `psql -U postgres -l`
 
+### Using AWS RDS or Cloud Databases
+
+If you're using AWS RDS or another cloud database that requires SSL:
+
+1. Update your `.env` file:
+```env
+DB_SSL=true
+DB_HOST=your-rds-endpoint.rds.amazonaws.com
+DB_USER=your_username
+DB_PASSWORD=your_password
+DB_NAME=weather_db
+DB_PORT=5432
+```
+
+2. Make sure your RDS security group allows inbound connections from your server's IP
+
 ### Port Already in Use
 
 If port 3000 is already in use, you can change it in `server.js`:

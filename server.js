@@ -19,6 +19,9 @@ const pool = new Pool({
     database: process.env.DB_NAME || 'weather_db',
     password: process.env.DB_PASSWORD || 'postgres',
     port: process.env.DB_PORT || 5432,
+    ssl: process.env.DB_SSL === 'true' ? {
+        rejectUnauthorized: false // For RDS and other cloud databases
+    } : false
 });
 
 // Test database connection
