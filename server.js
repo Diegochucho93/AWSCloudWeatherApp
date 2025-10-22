@@ -30,9 +30,85 @@ pool.query('SELECT NOW()', (err, res) => {
     }
 });
 
-// OpenWeatherMap API configuration
-const WEATHER_API_KEY = process.env.WEATHER_API_KEY;
-const WEATHER_API_URL = 'https://api.openweathermap.org/data/2.5/weather';
+// weather.gov API configuration (no API key needed!)
+const GEOCODING_API_URL = 'https://nominatim.openstreetmap.org/search';
+const WEATHER_GOV_API = 'https://api.weather.gov';
+
+// Helper function to get coordinates for a US city
+async function getCityCoordinates(city) {
+    try {
+        const response = await axios.get(GEOCODING_API_URL, {
+            params: {
+                q: `${city}, USA`,
+                format: 'json',
+                limit: 1,
+                countrycodes: 'us'
+            },
+            headers: {
+                'User-Agent': 'WeatherDashboardApp/1.0' // Required by Nominatim
+            }
+        });
+        
+        if (!response.data || response.data.length === 0) {
+            return null;
+        }
+        
+        return {
+            latitude: parseFloat(response.data[0].lat),
+            longitude: parseFloat(response.data[0].lon),
+            displayName: response.data[0].display_name
+        };
+    } catch (error) {
+        console.error('Geocoding error:', error.message);
+        return null;
+    }
+}
+
+// Helper function to get weather forecast URL from weather.gov
+async function getWeatherForecastUrl(latitude, longitude) {
+    try {
+        const pointResponse = await axios.get(`${WEATHER_GOV_API}/points/${latitude},${longitude}`, {
+            headers: {
+                'User-Agent': 'WeatherDashboardApp/1.0' // Required by weather.gov
+            }
+        });
+        
+        return pointResponse.data.properties.observationStations;
+    } catch (error) {
+        console.error('Error getting forecast URL:', error.message);
+        throw error;
+    }
+}
+
+// Helper function to get nearest observation station
+async function getNearestStation(stationsUrl) {
+    try {
+        const stationsResponse = await axios.get(stationsUrl, {
+            headers: {
+                'User-Agent': 'WeatherDashboardApp/1.0'
+            }
+        });
+        
+        if (!stationsResponse.data.features || stationsResponse.data.features.length === 0) {
+            throw new Error('No observation stations found');
+        }
+        
+        return stationsResponse.data.features[0].id;
+    } catch (error) {
+        console.error('Error getting station:', error.message);
+        throw error;
+    }
+}
+
+// Helper function to convert Celsius to Fahrenheit
+function celsiusToFahrenheit(celsius) {
+    return Math.round((celsius * 9/5) + 32);
+}
+
+// Helper function to convert meters per second to mph
+function mpsToMph(mps) {
+    return (mps * 2.237).toFixed(1);
+}
 
 // API Routes
 
@@ -44,46 +120,67 @@ app.get('/api/weather', async (req, res) => {
         return res.status(400).json({ error: 'City name is required' });
     }
     
-    if (!WEATHER_API_KEY) {
-        return res.status(500).json({ error: 'Weather API key not configured' });
-    }
-    
     try {
-        // Fetch weather data from OpenWeatherMap
-        const weatherResponse = await axios.get(WEATHER_API_URL, {
-            params: {
-                q: city,
-                appid: WEATHER_API_KEY,
-                units: 'metric' // Use Celsius
+        // Step 1: Get coordinates for the US city
+        const location = await getCityCoordinates(city);
+        
+        if (!location) {
+            return res.status(404).json({ error: 'US city not found. Please enter a valid US city name.' });
+        }
+        
+        const { latitude, longitude, displayName } = location;
+        
+        // Extract city name from display name
+        const cityName = displayName.split(',')[0];
+        
+        // Step 2: Get observation stations URL from weather.gov
+        const stationsUrl = await getWeatherForecastUrl(latitude, longitude);
+        
+        // Step 3: Get nearest observation station
+        const stationId = await getNearestStation(stationsUrl);
+        
+        // Step 4: Get current observations from the station
+        const observationUrl = `${stationId}/observations/latest`;
+        const observationResponse = await axios.get(observationUrl, {
+            headers: {
+                'User-Agent': 'WeatherDashboardApp/1.0'
             }
         });
         
-        const weatherData = weatherResponse.data;
-        const temperature = Math.round(weatherData.main.temp);
-        const description = weatherData.weather[0].description;
-        const humidity = weatherData.main.humidity;
-        const windSpeed = weatherData.wind.speed;
+        const observation = observationResponse.data.properties;
+        
+        // Extract weather data
+        const temperatureCelsius = observation.temperature.value;
+        const temperature = temperatureCelsius !== null ? celsiusToFahrenheit(temperatureCelsius) : null;
+        const humidity = observation.relativeHumidity.value !== null ? Math.round(observation.relativeHumidity.value) : null;
+        const windSpeedMps = observation.windSpeed.value;
+        const windSpeed = windSpeedMps !== null ? mpsToMph(windSpeedMps) : null;
+        const description = observation.textDescription || 'N/A';
+        
+        if (temperature === null) {
+            return res.status(503).json({ error: 'Weather data temporarily unavailable for this location' });
+        }
         
         // Store search in database
         await pool.query(
             'INSERT INTO searches (city, temperature, timestamp) VALUES ($1, $2, NOW())',
-            [weatherData.name, temperature]
+            [cityName, temperature]
         );
         
-        // Return weather data
+        // Return weather data (converting to format expected by frontend)
         res.json({
-            city: weatherData.name,
-            temperature,
-            description,
-            humidity,
-            windSpeed
+            city: cityName,
+            temperature: temperature,
+            description: description.toLowerCase(),
+            humidity: humidity,
+            windSpeed: windSpeed
         });
         
     } catch (error) {
         console.error('Error fetching weather:', error.message);
         
         if (error.response && error.response.status === 404) {
-            return res.status(404).json({ error: 'City not found' });
+            return res.status(404).json({ error: 'Weather data not available for this location. Try another US city.' });
         }
         
         res.status(500).json({ error: 'Failed to fetch weather data' });
@@ -110,4 +207,5 @@ app.get('/api/history', async (req, res) => {
 // Start server
 app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
+    console.log('Using weather.gov API for US weather data');
 });

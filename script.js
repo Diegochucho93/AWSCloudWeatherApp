@@ -50,10 +50,10 @@ async function searchWeather() {
 
 function displayWeather(data) {
     document.getElementById('cityName').textContent = data.city;
-    document.getElementById('temperature').textContent = `${data.temperature}°C`;
+    document.getElementById('temperature').textContent = `${data.temperature}°F`;
     document.getElementById('description').textContent = data.description;
     document.getElementById('humidity').textContent = `Humidity: ${data.humidity}%`;
-    document.getElementById('windSpeed').textContent = `Wind Speed: ${data.windSpeed} m/s`;
+    document.getElementById('windSpeed').textContent = `Wind Speed: ${data.windSpeed} mph`;
     
     currentWeather.classList.remove('hidden');
 }
@@ -84,7 +84,7 @@ function displayHistory(history) {
     historyBody.innerHTML = history.map(item => `
         <tr>
             <td>${item.city}</td>
-            <td>${item.temperature}°C</td>
+            <td>${item.temperature}°F</td>
             <td>${formatDate(item.timestamp)}</td>
         </tr>
     `).join('');

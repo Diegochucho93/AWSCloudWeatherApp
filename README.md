@@ -1,20 +1,21 @@
-# Weather Dashboard
+# Weather Dashboard (US Cities)
 
-A full-stack weather dashboard application that displays current weather information and tracks search history using PostgreSQL.
+A full-stack weather dashboard application that displays current weather information for US cities and tracks search history using PostgreSQL.
 
 ## Features
 
-- **Current Weather Display**: Search for any city and view current weather conditions
+- **Current Weather Display**: Search for any US city and view current weather conditions
 - **Historical Tracking**: Automatically stores and displays the last 10 weather searches
-- **Real-time Data**: Uses OpenWeatherMap API for accurate weather information
+- **Real-time Data**: Uses National Weather Service (weather.gov) API for accurate weather information
 - **Clean UI**: Modern, responsive design with gradient styling
+- **No API Key Required**: Completely free with no registration needed
 
 ## Tech Stack
 
 - **Frontend**: HTML, CSS, JavaScript
 - **Backend**: Node.js, Express
 - **Database**: PostgreSQL
-- **API**: OpenWeatherMap API
+- **API**: weather.gov (National Weather Service - no API key required!)
 
 ## Prerequisites
 
@@ -49,14 +50,7 @@ psql -U postgres -d weather_db -f schema.sql
 
 Alternatively, you can manually run the SQL commands from `schema.sql` in your PostgreSQL client.
 
-### 2. Get OpenWeatherMap API Key
-
-1. Visit [OpenWeatherMap](https://openweathermap.org/api)
-2. Sign up for a free account
-3. Go to API keys section
-4. Copy your API key
-
-### 3. Configure Environment Variables
+### 2. Configure Environment Variables
 
 Create a `.env` file in the project root:
 
@@ -64,10 +58,9 @@ Create a `.env` file in the project root:
 cp .env.example .env
 ```
 
-Edit the `.env` file and add your credentials:
+Edit the `.env` file and update your PostgreSQL credentials if needed:
 
 ```env
-WEATHER_API_KEY=your_actual_api_key_here
 DB_USER=postgres
 DB_HOST=localhost
 DB_NAME=weather_db
@@ -75,13 +68,15 @@ DB_PASSWORD=your_postgres_password
 DB_PORT=5432
 ```
 
-### 4. Install Dependencies
+**Note:** No weather API key needed! weather.gov is completely free and doesn't require registration.
+
+### 3. Install Dependencies
 
 ```bash
 npm install
 ```
 
-### 5. Start the Application
+### 4. Start the Application
 
 ```bash
 npm start
@@ -97,8 +92,10 @@ The server will start on `http://localhost:3000`
 
 ## Usage
 
+**Note: This app works with US cities only, as it uses the National Weather Service API.**
+
 1. Open your browser and navigate to `http://localhost:3000`
-2. Enter a city name in the search box
+2. Enter a US city name in the search box (e.g., "New York", "Los Angeles", "Chicago")
 3. Click "Search" or press Enter
 4. View the current weather information
 5. Check the history table below to see your last 10 searches
@@ -170,12 +167,6 @@ Retrieves the last 10 weather searches from the database.
 - Verify database credentials in `.env` file
 - Check if the database exists: `psql -U postgres -l`
 
-### API Key Error
-
-- Make sure you've set the `WEATHER_API_KEY` in your `.env` file
-- Verify the API key is active on OpenWeatherMap
-- Note: New API keys may take a few hours to activate
-
 ### Port Already in Use
 
 If port 3000 is already in use, you can change it in `server.js`:
@@ -196,6 +187,9 @@ ISC
 
 ## Notes
 
-- Temperature is displayed in Celsius
-- The free OpenWeatherMap API has a limit of 60 calls per minute
+- Temperature is displayed in Fahrenheit (°F)
+- Wind speed is displayed in miles per hour (mph)
+- weather.gov API is completely free with no registration required
+- **US locations only** - weather.gov provides data for United States locations
 - Search history is permanent unless manually deleted from the database
+- The app uses OpenStreetMap's Nominatim for geocoding US cities
