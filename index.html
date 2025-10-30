@@ -8,19 +8,61 @@
     <script src="https://unpkg.com/lucide@latest"></script>
 </head>
 <body>
-    <!-- Weather Background Video -->
     <video id="weatherVideo" class="weather-bg-video" autoplay loop muted playsinline>
-        <source src="" type="video/mp4">
-        Your browser does not support video backgrounds.
+        <!-- Video source will be set dynamically by JavaScript -->
     </video>
     
     <div class="container">
-        <h1>Weather Dashboard</h1>
+        <!-- Navigation Bar -->
+        <nav class="navbar">
+            <div class="nav-left">
+                <a href="index.html" class="nav-brand">Weather Dashboard</a>
+            </div>
+            <div class="nav-right" id="navRight">
+                <!-- Guest view -->
+                <div id="guestNav" class="nav-guest">
+                    <a href="signup.html" class="nav-link">Sign Up</a>
+                    <a href="login.html" class="nav-link">Login</a>
+                </div>
+                <!-- Logged in view -->
+                <div id="userNav" class="nav-user hidden">
+                    <span class="user-greeting">Hello, <span id="navUserName">User</span>!</span>
+                    <a href="settings.html" class="nav-link">Settings</a>
+                    <button id="logoutBtn" class="nav-btn">Logout</button>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Welcome Message for Logged-in Users -->
+        <div id="welcomeMessage" class="welcome-message hidden">
+            <h1>Hello, <span id="welcomeUserName">User</span>!</h1>
+        </div>
+
+        <!-- Regular title for guests -->
+        <h1 id="guestTitle">Weather Dashboard</h1>
         
         <div class="search-section">
             <input type="text" id="cityInput" placeholder="Enter city name..." />
             <button id="searchBtn">Search</button>
             <div id="autocompleteDropdown" class="autocomplete-dropdown hidden"></div>
+        </div>
+
+        <!-- Prompt to save cities (for guests after search) -->
+        <div id="savePrompt" class="save-prompt hidden">
+            <p>💡 <a href="signup.html">Sign up</a> to save your favorite cities and view your search history!</p>
+        </div>
+
+        <!-- Save City Button (for logged-in users) -->
+        <div id="saveCitySection" class="save-city-section hidden">
+            <button id="saveCityBtn" class="save-city-btn">⭐ Save this city</button>
+        </div>
+
+        <!-- Saved/Favorite Cities (for logged-in users) -->
+        <div id="savedCitiesSection" class="saved-cities-section hidden">
+            <h2>Your Favorite Cities</h2>
+            <div id="savedCitiesGrid" class="saved-cities-grid">
+                <!-- Saved cities cards will be inserted here -->
+            </div>
         </div>
 
         <div id="currentWeather" class="current-weather hidden">
@@ -33,6 +75,7 @@
                 <p class="details" id="windSpeed"></p>
             </div>
         </div>
+
         <!-- Hourly Forecast Section -->
         <div id="hourlyForecast" class="forecast-section hidden">
             <h2>Hourly Forecast (Next 12 Hours)</h2>
@@ -73,6 +116,5 @@
     </div>
 
     <script src="script.js"></script>
-    <script src="weather-icons-helper.js"></script>
 </body>
 </html>

@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings - Weather Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <video id="weatherVideo" class="weather-bg-video" autoplay loop muted playsinline>
+        <!-- Video source will be set dynamically -->
+    </video>
+    
+    <div class="container">
+        <!-- Navigation Bar -->
+        <nav class="navbar">
+            <div class="nav-left">
+                <a href="index.html" class="nav-brand">Weather Dashboard</a>
+            </div>
+            <div class="nav-right">
+                <span class="user-greeting">Hello, <span id="navUserName">User</span>!</span>
+                <a href="settings.html" class="nav-link active">Settings</a>
+                <button id="logoutBtn" class="nav-btn">Logout</button>
+            </div>
+        </nav>
+
+        <h1>Settings</h1>
+        
+        <!-- Account Information -->
+        <section class="settings-section">
+            <h2>Account Information</h2>
+            <div class="settings-card">
+                <div class="setting-item">
+                    <label>Name</label>
+                    <p id="accountName">Loading...</p>
+                </div>
+                <div class="setting-item">
+                    <label>Email</label>
+                    <p id="accountEmail">Loading...</p>
+                </div>
+                <div class="setting-item">
+                    <label>Member Since</label>
+                    <p id="accountCreated">Loading...</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Default City -->
+        <section class="settings-section">
+            <h2>Default City</h2>
+            <div class="settings-card">
+                <p class="setting-description">Choose a city to display when you first login</p>
+                <form id="defaultCityForm">
+                    <div class="form-group">
+                        <input type="text" id="defaultCityInput" placeholder="Search for a city..." class="settings-input">
+                        <div id="defaultCityDropdown" class="autocomplete-dropdown hidden"></div>
+                    </div>
+                    <div class="current-default">
+                        <label>Current Default:</label>
+                        <p id="currentDefault">None set</p>
+                    </div>
+                    <button type="submit" class="settings-btn">Update Default City</button>
+                </form>
+            </div>
+        </section>
+
+        <!-- Temperature Unit -->
+        <section class="settings-section">
+            <h2>Preferences</h2>
+            <div class="settings-card">
+                <div class="setting-item">
+                    <label>Temperature Unit</label>
+                    <div class="radio-group">
+                        <label class="radio-label">
+                            <input type="radio" name="tempUnit" value="F" checked>
+                            <span>Fahrenheit (°F)</span>
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="tempUnit" value="C">
+                            <span>Celsius (°C)</span>
+                        </label>
+                    </div>
+                </div>
+                <button id="savePreferencesBtn" class="settings-btn">Save Preferences</button>
+            </div>
+        </section>
+
+        <!-- Saved Cities -->
+        <section class="settings-section">
+            <h2>Saved Cities</h2>
+            <div class="settings-card">
+                <p class="setting-description">Manage your favorite cities</p>
+                <div id="savedCitiesList" class="saved-cities-list">
+                    <!-- Saved cities will be loaded here -->
+                    <p class="empty-state">No saved cities yet</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Change Password -->
+        <section class="settings-section">
+            <h2>Change Password</h2>
+            <div class="settings-card">
+                <form id="changePasswordForm">
+                    <div class="form-group">
+                        <label for="currentPassword">Current Password</label>
+                        <input type="password" id="currentPassword" name="currentPassword" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="newPassword">New Password</label>
+                        <input type="password" id="newPassword" name="newPassword" required minlength="6">
+                    </div>
+                    <div class="form-group">
+                        <label for="confirmPassword">Confirm New Password</label>
+                        <input type="password" id="confirmPassword" name="confirmPassword" required>
+                    </div>
+                    <button type="submit" class="settings-btn">Change Password</button>
+                </form>
+            </div>
+        </section>
+
+        <!-- Danger Zone -->
+        <section class="settings-section">
+            <h2>Danger Zone</h2>
+            <div class="settings-card danger-card">
+                <p class="setting-description">Once you delete your account, there is no going back.</p>
+                <button id="deleteAccountBtn" class="settings-btn danger-btn">Delete Account</button>
+            </div>
+        </section>
+
+        <div id="settingsMessage" class="settings-message hidden"></div>
+    </div>
+
+    <script src="settings.js"></script>
+</body>
+</html>

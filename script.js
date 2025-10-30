@@ -1,33 +1,241 @@
+// script.js - Main dashboard functionality with user authentication
+
 const API_URL = '/api';
 const cityInput = document.getElementById('cityInput');
 const searchBtn = document.getElementById('searchBtn');
 const currentWeather = document.getElementById('currentWeather');
 const errorDiv = document.getElementById('error');
 const historyBody = document.getElementById('historyBody');
+
+// Autocomplete variables
+const autocompleteDropdown = document.getElementById('autocompleteDropdown');
+let selectedCityData = null;
+let debounceTimer;
+
+// Forecast variables
 const hourlyForecast = document.getElementById('hourlyForecast');
 const dailyForecast = document.getElementById('dailyForecast');
 const hourlyContainer = document.getElementById('hourlyContainer');
 const dailyContainer = document.getElementById('dailyContainer');
 
-// Autocomplete variables
-const autocompleteDropdown = document.getElementById('autocompleteDropdown');
-let selectedCityData = null; // Store selected city's coordinates
-let debounceTimer;
+// User-related variables
+let currentUser = null;
+let currentCityData = null; // Store current city being displayed
 
-// Listen for typing in the city input
+// Navigation elements
+const guestNav = document.getElementById('guestNav');
+const userNav = document.getElementById('userNav');
+const navUserName = document.getElementById('navUserName');
+const logoutBtn = document.getElementById('logoutBtn');
+const guestTitle = document.getElementById('guestTitle');
+const welcomeMessage = document.getElementById('welcomeMessage');
+const welcomeUserName = document.getElementById('welcomeUserName');
+const savePrompt = document.getElementById('savePrompt');
+const saveCitySection = document.getElementById('saveCitySection');
+const saveCityBtn = document.getElementById('saveCityBtn');
+const savedCitiesSection = document.getElementById('savedCitiesSection');
+const savedCitiesGrid = document.getElementById('savedCitiesGrid');
+
+// Check if user is logged in on page load
+checkAuth();
+
+async function checkAuth() {
+    try {
+        const response = await fetch(`${API_URL}/auth/me`);
+        
+        if (response.ok) {
+            const data = await response.json();
+            currentUser = data.user;
+            showLoggedInUI();
+            loadUserData();
+        } else {
+            currentUser = null;
+            showGuestUI();
+        }
+        
+    } catch (error) {
+        console.error('Auth check error:', error);
+        currentUser = null;
+        showGuestUI();
+    }
+}
+
+function showLoggedInUI() {
+    // Show user nav, hide guest nav
+    guestNav.classList.add('hidden');
+    userNav.classList.remove('hidden');
+    navUserName.textContent = currentUser.name;
+    
+    // Show welcome message, hide guest title
+    guestTitle.classList.add('hidden');
+    welcomeMessage.classList.remove('hidden');
+    welcomeUserName.textContent = currentUser.name;
+    
+    // Load user's default city if set
+    loadDefaultCity();
+}
+
+function showGuestUI() {
+    // Show guest nav, hide user nav
+    guestNav.classList.remove('hidden');
+    userNav.classList.add('hidden');
+    
+    // Show guest title, hide welcome message
+    guestTitle.classList.remove('hidden');
+    welcomeMessage.classList.add('hidden');
+    
+    // Hide user-specific sections
+    savedCitiesSection.classList.add('hidden');
+}
+
+// Load user's default city weather
+async function loadDefaultCity() {
+    try {
+        const response = await fetch(`${API_URL}/preferences`);
+        if (response.ok) {
+            const data = await response.json();
+            const prefs = data.preferences || data;
+            
+            if (prefs.default_city && prefs.default_state) {
+                // Auto-load default city weather
+                const cityQuery = `${prefs.default_city}, ${prefs.default_state}`;
+                cityInput.value = cityQuery;
+                searchWeather();
+            }
+        }
+    } catch (error) {
+        console.error('Error loading default city:', error);
+    }
+    
+    // Load saved cities
+    loadSavedCities();
+}
+
+// Load user data (saved cities and search history)
+async function loadUserData() {
+    loadSavedCities();
+    loadHistory();
+}
+
+// Load saved/favorite cities
+async function loadSavedCities() {
+    if (!currentUser) return;
+    
+    try {
+        const response = await fetch(`${API_URL}/saved-cities`);
+        if (response.ok) {
+            const data = await response.json();
+            displaySavedCities(data.cities);
+        }
+    } catch (error) {
+        console.error('Error loading saved cities:', error);
+    }
+}
+
+function displaySavedCities(cities) {
+    if (!cities || cities.length === 0) {
+        savedCitiesSection.classList.add('hidden');
+        return;
+    }
+    
+    savedCitiesSection.classList.remove('hidden');
+    savedCitiesGrid.innerHTML = cities.map(city => `
+        <div class="saved-city-card" data-city="${city.city}" data-state="${city.state_id}">
+            <h3>${city.city}, ${city.state_id}</h3>
+            <button class="remove-city-btn" data-id="${city.id}">×</button>
+        </div>
+    `).join('');
+    
+    // Add click handlers
+    document.querySelectorAll('.saved-city-card').forEach(card => {
+        card.addEventListener('click', (e) => {
+            if (!e.target.classList.contains('remove-city-btn')) {
+                const city = card.dataset.city;
+                const state = card.dataset.state;
+                cityInput.value = `${city}, ${state}`;
+                searchWeather();
+            }
+        });
+    });
+    
+    // Add remove button handlers
+    document.querySelectorAll('.remove-city-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const cityId = btn.dataset.id;
+            await removeSavedCity(cityId);
+        });
+    });
+}
+
+async function removeSavedCity(cityId) {
+    try {
+        const response = await fetch(`${API_URL}/saved-cities/${cityId}`, {
+            method: 'DELETE'
+        });
+        
+        if (response.ok) {
+            loadSavedCities(); // Reload list
+        }
+    } catch (error) {
+        console.error('Error removing city:', error);
+    }
+}
+
+// Logout
+if (logoutBtn) {
+    logoutBtn.addEventListener('click', async () => {
+        try {
+            await fetch(`${API_URL}/auth/logout`, { method: 'POST' });
+            window.location.reload();
+        } catch (error) {
+            console.error('Logout error:', error);
+        }
+    });
+}
+
+// Save current city
+if (saveCityBtn) {
+    saveCityBtn.addEventListener('click', async () => {
+        if (!currentCityData) return;
+        
+        try {
+            const response = await fetch(`${API_URL}/saved-cities`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(currentCityData)
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok) {
+                saveCityBtn.textContent = '✓ Saved!';
+                setTimeout(() => {
+                    saveCityBtn.textContent = '⭐ Save this city';
+                    saveCitySection.classList.add('hidden');
+                }, 2000);
+                loadSavedCities();
+            } else {
+                alert(data.error || 'Failed to save city');
+            }
+            
+        } catch (error) {
+            console.error('Error saving city:', error);
+            alert('Failed to save city');
+        }
+    });
+}
+
+// Listen for typing in the city input (autocomplete)
 cityInput.addEventListener('input', (e) => {
     const query = e.target.value.trim();
-    
-    // Clear previous timer
     clearTimeout(debounceTimer);
     
-    // If query is too short, hide dropdown
     if (query.length < 2) {
         hideAutocomplete();
         return;
     }
     
-    // Debounce: wait 300ms after user stops typing before searching
     debounceTimer = setTimeout(() => {
         searchCities(query);
     }, 300);
@@ -51,7 +259,7 @@ async function searchCities(query) {
     }
 }
 
-// Display autocomplete dropdown with results
+// Display autocomplete dropdown
 function displayAutocomplete(cities) {
     autocompleteDropdown.innerHTML = cities.map(city => `
         <div class="autocomplete-item" data-city="${city.city}" data-state="${city.state}" data-lat="${city.lat}" data-lng="${city.lng}">
@@ -60,7 +268,6 @@ function displayAutocomplete(cities) {
         </div>
     `).join('');
     
-    // Add click handlers to each item
     const items = autocompleteDropdown.querySelectorAll('.autocomplete-item');
     items.forEach(item => {
         item.addEventListener('click', () => {
@@ -78,20 +285,13 @@ function selectCity(item) {
     const lat = parseFloat(item.dataset.lat);
     const lng = parseFloat(item.dataset.lng);
     
-    // Store the selected city data
     selectedCityData = { city, state, lat, lng };
-    
-    // Update input field
     cityInput.value = `${city}, ${state}`;
-    
-    // Hide dropdown
     hideAutocomplete();
-    
-    // Automatically search weather for selected city
     searchWeatherWithCoordinates(city, state, lat, lng);
 }
 
-// Hide autocomplete dropdown
+// Hide autocomplete
 function hideAutocomplete() {
     autocompleteDropdown.classList.add('hidden');
     autocompleteDropdown.innerHTML = '';
@@ -104,7 +304,7 @@ document.addEventListener('click', (e) => {
     }
 });
 
-// Modified search function to use coordinates if available
+// Search weather with coordinates
 async function searchWeatherWithCoordinates(city, state, lat, lng) {
     try {
         hideError();
@@ -117,8 +317,24 @@ async function searchWeatherWithCoordinates(city, state, lat, lng) {
             return;
         }
         
+        // Store current city data
+        currentCityData = {
+            city: data.city,
+            state_id: state,
+            state_name: state, // You might want to get full state name
+            lat: lat,
+            lng: lng
+        };
+        
         displayWeather(data);
-        loadHistory();
+        
+        if (currentUser) {
+            loadHistory();
+            saveCitySection.classList.remove('hidden');
+        } else {
+            savePrompt.classList.remove('hidden');
+        }
+        
         cityInput.value = '';
         selectedCityData = null;
         
@@ -134,6 +350,7 @@ searchBtn.addEventListener('click', searchWeather);
 // Search weather on Enter key
 cityInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') {
+        hideAutocomplete();
         searchWeather();
     }
 });
@@ -161,7 +378,13 @@ async function searchWeather() {
         }
         
         displayWeather(data);
-        loadHistory();
+        
+        if (currentUser) {
+            loadHistory();
+        } else {
+            savePrompt.classList.remove('hidden');
+        }
+        
         cityInput.value = '';
         
     } catch (error) {
@@ -171,7 +394,6 @@ async function searchWeather() {
 }
 
 function displayWeather(data) {
-    // Display current weather (same as before)
     document.getElementById('cityName').textContent = data.city;
     document.getElementById('temperature').textContent = `${data.temperature}°F`;
     document.getElementById('description').textContent = data.description;
@@ -180,21 +402,16 @@ function displayWeather(data) {
     
     currentWeather.classList.remove('hidden');
     
-    // NEW: Update background video based on weather
-    updateWeatherVideo(data.description);
-    
-    // NEW: Display hourly forecast
+    // Display forecasts
     if (data.hourlyForecast && data.hourlyForecast.length > 0) {
         displayHourlyForecast(data.hourlyForecast);
     }
     
-    // NEW: Display daily forecast
     if (data.dailyForecast && data.dailyForecast.length > 0) {
         displayDailyForecast(data.dailyForecast);
     }
 }
 
-// NEW FUNCTION: Display hourly forecast
 function displayHourlyForecast(hours) {
     hourlyContainer.innerHTML = hours.map(hour => {
         const time = new Date(hour.time);
@@ -203,22 +420,9 @@ function displayHourlyForecast(hours) {
             hour12: true 
         });
         
-        // Calculate isDaytime from hour if API doesn't provide it
-        // 6 AM (6) to 6 PM (18) = daytime
-        const currentHour = time.getHours();
-        const isDaytime = hour.isDaytime !== undefined 
-            ? hour.isDaytime 
-            : (currentHour >= 6 && currentHour < 18);
-        
-        // Get weather icon info with night detection
-        const iconInfo = getWeatherIcon(hour.shortForecast, isDaytime);
-        
         return `
             <div class="hourly-card">
                 <div class="time">${timeString}</div>
-                <div class="weather-icon-container ${iconInfo.class}">
-                    <i data-lucide="${iconInfo.icon}"></i>
-                </div>
                 <div class="temp">${hour.temperature}°${hour.temperatureUnit}</div>
                 <div class="condition">${hour.shortForecast}</div>
             </div>
@@ -226,23 +430,13 @@ function displayHourlyForecast(hours) {
     }).join('');
     
     hourlyForecast.classList.remove('hidden');
-    
-    // Initialize Lucide icons
-    lucide.createIcons();
 }
 
-// NEW FUNCTION: Display daily forecast
 function displayDailyForecast(days) {
     dailyContainer.innerHTML = days.map(day => {
-        // Get weather icon info with night detection
-        const iconInfo = getWeatherIcon(day.shortForecast, day.isDaytime);
-        
         return `
             <div class="daily-card">
                 <div class="day-name">${day.name}</div>
-                <div class="weather-icon-container ${iconInfo.class}">
-                    <i data-lucide="${iconInfo.icon}"></i>
-                </div>
                 <div class="temp">${day.temperature}°${day.temperatureUnit}</div>
                 <div class="condition">${day.shortForecast}</div>
             </div>
@@ -250,13 +444,11 @@ function displayDailyForecast(days) {
     }).join('');
     
     dailyForecast.classList.remove('hidden');
-    
-    // Initialize Lucide icons
-    lucide.createIcons();
 }
 
-
 async function loadHistory() {
+    if (!currentUser) return;
+    
     try {
         const response = await fetch(`${API_URL}/history`);
         const data = await response.json();
@@ -307,194 +499,4 @@ function showError(message) {
 
 function hideError() {
     errorDiv.classList.add('hidden');
-}
-
-// Update background video based on weather condition
-function updateWeatherVideo(condition) {
-    const videoElement = document.getElementById('weatherVideo');
-    const videoSource = videoElement.querySelector('source');
-    
-    // Determine if it's daytime (6 AM - 6 PM)
-    const currentHour = new Date().getHours();
-    const isDaytime = currentHour >= 6 && currentHour < 18;
-    const timePrefix = isDaytime ? 'day' : 'night';
-    
-    // Map weather condition to video filename
-    const weatherMap = {
-        'clear': 'clear',
-        'sunny': 'clear',
-        'clear sky': 'clear',
-        'fair': 'clear',
-        
-        'cloudy': 'cloudy',
-        'clouds': 'cloudy',
-        'overcast': 'cloudy',
-        'partly cloudy': 'cloudy',
-        'mostly cloudy': 'cloudy',
-        'few clouds': 'cloudy',
-        'scattered clouds': 'cloudy',
-        'broken clouds': 'cloudy',
-        
-        'rain': 'rain',
-        'rainy': 'rain',
-        'light rain': 'rain',
-        'drizzle': 'rain',
-        'shower': 'rain',
-        'showers': 'rain',
-        'heavy rain': 'rain',
-        'chance rain': 'rain',
-        
-        'thunderstorm': 'storm',
-        'storm': 'storm',
-        'thunder': 'storm',
-        't-storm': 'storm',
-        
-        'snow': 'snow',
-        'snowy': 'snow',
-        'light snow': 'snow',
-        'heavy snow': 'snow',
-        'sleet': 'snow',
-        'flurries': 'snow',
-        
-        'fog': 'fog',
-        'mist': 'fog',
-        'haze': 'fog',
-        'foggy': 'fog',
-        
-        'windy': 'cloudy',
-        'wind': 'cloudy',
-        'breezy': 'cloudy'
-    };
-    
-    const normalized = condition.toLowerCase().trim();
-    let weatherType = 'cloudy'; // default
-    
-    // Find matching weather type
-    for (const [key, value] of Object.entries(weatherMap)) {
-        if (normalized.includes(key)) {
-            weatherType = value;
-            break;
-        }
-    }
-    
-    // Build video path
-    const videoPath = `weather-videos/${timePrefix}-${weatherType}.mp4`;
-    
-    // Only update if video path changed
-    if (videoSource.src !== videoPath) {
-        videoSource.src = videoPath;
-        videoElement.load();
-        videoElement.play().catch(err => {
-            console.log('Video autoplay prevented:', err);
-        });
-    }
-}
-
-// Weather icon mapping helper
-function getWeatherIcon(condition, isDaytime = true) {
-    const weatherIconMap = {
-        // Sunny/Clear conditions - different for day/night
-        'clear': { 
-            day: { icon: 'sun', class: 'sunny' },
-            night: { icon: 'moon', class: 'night' }
-        },
-        'sunny': { 
-            day: { icon: 'sun', class: 'sunny' },
-            night: { icon: 'moon', class: 'night' }
-        },
-        'clear sky': { 
-            day: { icon: 'sun', class: 'sunny' },
-            night: { icon: 'moon', class: 'night' }
-        },
-        'fair': { 
-            day: { icon: 'sun', class: 'sunny' },
-            night: { icon: 'moon', class: 'night' }
-        },
-        
-        // Cloudy conditions - different for day/night
-        'cloudy': { icon: 'cloud', class: 'cloudy' },
-        'clouds': { icon: 'cloud', class: 'cloudy' },
-        'overcast': { icon: 'cloud', class: 'cloudy' },
-        'partly cloudy': { 
-            day: { icon: 'cloud-sun', class: 'cloudy' },
-            night: { icon: 'cloud-moon', class: 'night-cloudy' }
-        },
-        'mostly cloudy': { 
-            day: { icon: 'cloud', class: 'cloudy' },
-            night: { icon: 'cloud-moon', class: 'night-cloudy' }
-        },
-        'few clouds': { 
-            day: { icon: 'cloud-sun', class: 'cloudy' },
-            night: { icon: 'cloud-moon', class: 'night-cloudy' }
-        },
-        'scattered clouds': { 
-            day: { icon: 'cloud-sun', class: 'cloudy' },
-            night: { icon: 'cloud-moon', class: 'night-cloudy' }
-        },
-        'broken clouds': { icon: 'cloud', class: 'cloudy' },
-        
-        // Rainy conditions (same day/night)
-        'rain': { icon: 'cloud-rain', class: 'rainy' },
-        'rainy': { icon: 'cloud-rain', class: 'rainy' },
-        'light rain': { icon: 'cloud-drizzle', class: 'rainy' },
-        'drizzle': { icon: 'cloud-drizzle', class: 'rainy' },
-        'shower': { icon: 'cloud-rain', class: 'rainy' },
-        'showers': { icon: 'cloud-rain', class: 'rainy' },
-        'heavy rain': { icon: 'cloud-rain', class: 'rainy' },
-        'chance rain': { icon: 'cloud-rain', class: 'rainy' },
-        
-        // Stormy conditions (same day/night)
-        'thunderstorm': { icon: 'cloud-lightning', class: 'stormy' },
-        'storm': { icon: 'cloud-lightning', class: 'stormy' },
-        'thunder': { icon: 'cloud-lightning', class: 'stormy' },
-        't-storm': { icon: 'cloud-lightning', class: 'stormy' },
-        
-        // Snowy conditions (same day/night)
-        'snow': { icon: 'cloud-snow', class: 'snowy' },
-        'snowy': { icon: 'cloud-snow', class: 'snowy' },
-        'light snow': { icon: 'cloud-snow', class: 'snowy' },
-        'heavy snow': { icon: 'cloud-snow', class: 'snowy' },
-        'sleet': { icon: 'cloud-snow', class: 'snowy' },
-        'flurries': { icon: 'cloud-snow', class: 'snowy' },
-        
-        // Windy conditions (same day/night)
-        'windy': { icon: 'wind', class: 'windy' },
-        'wind': { icon: 'wind', class: 'windy' },
-        'breezy': { icon: 'wind', class: 'windy' },
-        
-        // Foggy/Misty (same day/night)
-        'fog': { icon: 'cloud-fog', class: 'cloudy' },
-        'mist': { icon: 'cloud-fog', class: 'cloudy' },
-        'haze': { icon: 'cloud-fog', class: 'cloudy' },
-        'foggy': { icon: 'cloud-fog', class: 'cloudy' }
-    };
-    
-    const normalized = condition.toLowerCase().trim();
-    
-    // Check for exact match first
-    if (weatherIconMap[normalized]) {
-        const mapping = weatherIconMap[normalized];
-        // If mapping has day/night variants, choose based on isDaytime
-        if (mapping.day && mapping.night) {
-            return isDaytime ? mapping.day : mapping.night;
-        }
-        // Otherwise return the single mapping
-        return mapping;
-    }
-    
-    // Check for partial matches
-    for (const [key, value] of Object.entries(weatherIconMap)) {
-        if (normalized.includes(key)) {
-            // If mapping has day/night variants, choose based on isDaytime
-            if (value.day && value.night) {
-                return isDaytime ? value.day : value.night;
-            }
-            return value;
-        }
-    }
-    
-    // Default to cloudy/night-cloudy based on time
-    return isDaytime 
-        ? { icon: 'cloud', class: 'cloudy' }
-        : { icon: 'cloud-moon', class: 'night-cloudy' };
 }
