@@ -224,12 +224,13 @@ Internet
 
 **To set up the city database:**
 
-1. **Option A - Purchase SimpleMaps** (~$39): [US Cities Database](https://simplemaps.com/data/us-cities)
+1. **Option A - Download the Basic Database on SimpleMaps** (~FREE): [US Cities Database](https://simplemaps.com/data/us-cities)
    - 30,000+ cities with accurate coordinates
    - Regular updates
-   - After purchase, import with: `\COPY cities FROM 'uscities.csv' DELIMITER ',' CSV HEADER;`
+   - Basic Fields
+   - Creative Commons Attribution 4.0
 
-2. **Option B - Use Free Alternatives:**
+2. **Option B - Use Other Free Alternatives:**
    - **GeoNames** (http://www.geonames.org/) - Free, CC BY 4.0 license, global coverage
    - **US Census Gazetteers** (census.gov) - Free, public domain
    - **Natural Earth Data** (naturalearthdata.com) - Free, public domain
