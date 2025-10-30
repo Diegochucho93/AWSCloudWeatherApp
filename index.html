@@ -9,7 +9,7 @@
 </head>
 <body>
     <video id="weatherVideo" class="weather-bg-video" autoplay loop muted playsinline>
-        <!-- Video source will be set dynamically by JavaScript -->
+        <source src="https://cdn.coverr.co/videos/coverr-clouds-moving-over-green-fields-6190/1080p.mp4" type="video/mp4">
     </video>
     
     <div class="container">
@@ -18,17 +18,79 @@
             <div class="nav-left">
                 <a href="index.html" class="nav-brand">Weather Dashboard</a>
             </div>
-            <div class="nav-right" id="navRight">
-                <!-- Guest view -->
+            <div class="nav-right">
+                <!-- Guest view - Login button with dropdown -->
                 <div id="guestNav" class="nav-guest">
-                    <a href="signup.html" class="nav-link">Sign Up</a>
-                    <a href="login.html" class="nav-link">Login</a>
+                    <button id="loginMenuBtn" class="nav-btn">
+                        <i data-lucide="log-in"></i>
+                        Login
+                    </button>
+                    <!-- Login/Signup Dropdown -->
+                    <div id="authDropdown" class="auth-dropdown hidden">
+                        <!-- Login Form (default) -->
+                        <div id="loginFormContainer" class="auth-form-container">
+                            <h3>Welcome Back</h3>
+                            <form id="loginForm" class="dropdown-auth-form">
+                                <div class="form-group">
+                                    <input type="email" id="loginEmail" placeholder="Email" required>
+                                </div>
+                                <div class="form-group">
+                                    <input type="password" id="loginPassword" placeholder="Password" required>
+                                </div>
+                                <button type="submit" class="auth-btn">Sign In</button>
+                            </form>
+                            <div class="auth-toggle">
+                                <span>Don't have an account? </span>
+                                <button id="showSignupBtn" class="toggle-link">Sign up</button>
+                            </div>
+                        </div>
+                        
+                        <!-- Signup Form (hidden by default) -->
+                        <div id="signupFormContainer" class="auth-form-container hidden">
+                            <h3>Create Account</h3>
+                            <form id="signupForm" class="dropdown-auth-form">
+                                <div class="form-group">
+                                    <input type="text" id="signupName" placeholder="Name" required>
+                                </div>
+                                <div class="form-group">
+                                    <input type="email" id="signupEmail" placeholder="Email" required>
+                                </div>
+                                <div class="form-group">
+                                    <input type="password" id="signupPassword" placeholder="Password" required minlength="6">
+                                </div>
+                                <div class="form-group">
+                                    <input type="password" id="signupPasswordConfirm" placeholder="Confirm Password" required>
+                                </div>
+                                <button type="submit" class="auth-btn">Create Account</button>
+                            </form>
+                            <div class="auth-toggle">
+                                <span>Already have an account? </span>
+                                <button id="showLoginBtn" class="toggle-link">Sign in</button>
+                            </div>
+                        </div>
+                        
+                        <div id="authError" class="auth-dropdown-error hidden"></div>
+                    </div>
                 </div>
-                <!-- Logged in view -->
+                
+                <!-- Logged in view - Profile icon dropdown -->
                 <div id="userNav" class="nav-user hidden">
-                    <span class="user-greeting">Hello, <span id="navUserName">User</span>!</span>
-                    <a href="settings.html" class="nav-link">Settings</a>
-                    <button id="logoutBtn" class="nav-btn">Logout</button>
+                    <button id="profileMenuBtn" class="profile-btn" aria-label="Profile menu">
+                        <i data-lucide="user-circle"></i>
+                    </button>
+                    <div id="profileDropdown" class="profile-dropdown hidden">
+                        <div class="dropdown-header">
+                            <span id="dropdownUserName">User</span>
+                        </div>
+                        <a href="settings.html" class="dropdown-item">
+                            <i data-lucide="settings"></i>
+                            Settings
+                        </a>
+                        <button id="logoutBtn" class="dropdown-item logout-item">
+                            <i data-lucide="log-out"></i>
+                            Logout
+                        </button>
+                    </div>
                 </div>
             </div>
         </nav>
@@ -43,13 +105,22 @@
         
         <div class="search-section">
             <input type="text" id="cityInput" placeholder="Enter city name..." />
-            <button id="searchBtn">Search</button>
+            <button id="searchBtn">
+                <i data-lucide="search"></i>
+                Search
+            </button>
             <div id="autocompleteDropdown" class="autocomplete-dropdown hidden"></div>
+        </div>
+
+        <!-- Loading Spinner -->
+        <div id="loadingSpinner" class="loading-spinner hidden">
+            <div class="spinner"></div>
+            <p>Loading weather data...</p>
         </div>
 
         <!-- Prompt to save cities (for guests after search) -->
         <div id="savePrompt" class="save-prompt hidden">
-            <p>💡 <a href="signup.html">Sign up</a> to save your favorite cities and view your search history!</p>
+            <p>💡 <button id="promptLoginBtn" class="prompt-login-link">Log in</button> to save your favorite cities and view your search history!</p>
         </div>
 
         <!-- Save City Button (for logged-in users) -->
@@ -57,58 +128,85 @@
             <button id="saveCityBtn" class="save-city-btn">⭐ Save this city</button>
         </div>
 
-        <!-- Saved/Favorite Cities (for logged-in users) -->
-        <div id="savedCitiesSection" class="saved-cities-section hidden">
-            <h2>Your Favorite Cities</h2>
-            <div id="savedCitiesGrid" class="saved-cities-grid">
-                <!-- Saved cities cards will be inserted here -->
+        <!-- Two Column Weather Layout -->
+        <div id="weatherLayout" class="weather-layout hidden">
+            <!-- Left Column - Current Weather -->
+            <div class="weather-column-left">
+                <div id="currentWeather" class="current-weather-card">
+                    <h3 id="cityName"></h3>
+                    <p class="temperature" id="temperature"></p>
+                    <p class="description" id="description"></p>
+                    <div class="weather-details">
+                        <p class="detail-item" id="humidity"></p>
+                        <p class="detail-item" id="windSpeed"></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column - Forecasts -->
+            <div class="weather-column-right">
+                <!-- Hourly Forecast -->
+                <div class="forecast-box">
+                    <div class="forecast-header">
+                        <h3>Next 12 Hours</h3>
+                        <span class="scroll-hint">→</span>
+                    </div>
+                    <div class="forecast-scroll-container" id="hourlyContainer">
+                        <!-- Hourly cards will be inserted here -->
+                    </div>
+                </div>
+
+                <!-- Daily Forecast -->
+                <div class="forecast-box">
+                    <div class="forecast-header">
+                        <h3>7-Day Forecast</h3>
+                        <span class="scroll-hint">→</span>
+                    </div>
+                    <div class="forecast-scroll-container" id="dailyContainer">
+                        <!-- Daily cards will be inserted here -->
+                    </div>
+                </div>
             </div>
         </div>
 
-        <div id="currentWeather" class="current-weather hidden">
-            <h2>Current Weather</h2>
-            <div class="weather-info">
-                <h3 id="cityName"></h3>
-                <p class="temperature" id="temperature"></p>
-                <p class="description" id="description"></p>
-                <p class="details" id="humidity"></p>
-                <p class="details" id="windSpeed"></p>
+        <!-- Collapsible Saved Cities (for logged-in users) -->
+        <div id="savedCitiesSection" class="collapsible-section hidden">
+            <button class="section-toggle" id="savedCitiesToggle">
+                <i data-lucide="star"></i>
+                <span>Favorite Cities</span>
+                <i data-lucide="chevron-down" class="toggle-icon"></i>
+            </button>
+            <div id="savedCitiesContent" class="section-content hidden">
+                <div id="savedCitiesGrid" class="saved-cities-grid">
+                    <!-- Saved cities cards will be inserted here -->
+                </div>
             </div>
         </div>
 
-        <!-- Hourly Forecast Section -->
-        <div id="hourlyForecast" class="forecast-section hidden">
-            <h2>Hourly Forecast (Next 12 Hours)</h2>
-            <div class="forecast-container" id="hourlyContainer">
-                <!-- Hourly cards will be inserted here by JavaScript -->
-            </div>
-        </div>
-
-        <!-- Daily Forecast Section -->
-        <div id="dailyForecast" class="forecast-section hidden">
-            <h2>7-Day Forecast</h2>
-            <div class="forecast-container" id="dailyContainer">
-                <!-- Daily cards will be inserted here by JavaScript -->
-            </div>
-        </div>
-
-        <div class="history-section">
-            <h2>Search History (Last 10)</h2>
-            <div id="historyTable">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>City</th>
-                            <th>Temperature</th>
-                            <th>Timestamp</th>
-                        </tr>
-                    </thead>
-                    <tbody id="historyBody">
-                        <tr>
-                            <td colspan="3">No search history yet</td>
-                        </tr>
-                    </tbody>
-                </table>
+        <!-- Collapsible Search History -->
+        <div id="historySection" class="collapsible-section hidden">
+            <button class="section-toggle" id="historyToggle">
+                <i data-lucide="clock"></i>
+                <span>Search History</span>
+                <i data-lucide="chevron-down" class="toggle-icon"></i>
+            </button>
+            <div id="historyContent" class="section-content hidden">
+                <div id="historyTable">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>City</th>
+                                <th>Temperature</th>
+                                <th>Timestamp</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historyBody">
+                            <tr>
+                                <td colspan="3">No search history yet</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
 
@@ -116,5 +214,9 @@
     </div>
 
     <script src="script.js"></script>
+    <script>
+        // Initialize Lucide icons
+        lucide.createIcons();
+    </script>
 </body>
 </html>
