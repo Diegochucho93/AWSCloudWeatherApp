@@ -926,9 +926,9 @@ The development process showcased:
 ## 📧 Contact
 
 For questions, suggestions, or just to connect:
-- **GitHub:** [@yourusername](https://github.com/yourusername)
-- **Email:** your.email@example.com
-- **LinkedIn:** [Your Name](https://linkedin.com/in/yourprofile)
+- **GitHub:** https://github.com/Diegochucho93/
+- **Email:** Diegochucho93@gmail.com or ddm5093@mavs.uta.edu
+- **LinkedIn:** https://www.linkedin.com/in/diego-mendoza-510412268/
 
 ---
 
