@@ -68,20 +68,81 @@ async function getCityCoordinates(city) {
 }
 
 // Helper function to get weather forecast URL from weather.gov
-async function getWeatherForecastUrl(latitude, longitude) {
+async function getWeatherEndpoints(latitude, longitude) {
     try {
         const pointResponse = await axios.get(`${WEATHER_GOV_API}/points/${latitude},${longitude}`, {
             headers: {
-                'User-Agent': 'WeatherDashboardApp/1.0' // Required by weather.gov
+                'User-Agent': 'WeatherDashboardApp/1.0'
             }
         });
         
-        return pointResponse.data.properties.observationStations;
+        const properties = pointResponse.data.properties;
+        
+        return {
+            observationStations: properties.observationStations,
+            forecast: properties.forecast,              // 12-hour periods
+            forecastHourly: properties.forecastHourly   // hourly forecast
+        };
     } catch (error) {
-        console.error('Error getting forecast URL:', error.message);
+        console.error('Error getting weather endpoints:', error.message);
         throw error;
     }
 }
+
+// NEW FUNCTION: Get hourly forecast (next 12 hours)
+async function getHourlyForecast(forecastHourlyUrl) {
+    try {
+        const response = await axios.get(forecastHourlyUrl, {
+            headers: {
+                'User-Agent': 'WeatherDashboardApp/1.0'
+            }
+        });
+        
+        // Get only the next 12 hours
+        const periods = response.data.properties.periods.slice(0, 12);
+        
+        return periods.map(period => ({
+            time: period.startTime,
+            temperature: period.temperature,
+            temperatureUnit: period.temperatureUnit,
+            shortForecast: period.shortForecast,
+            windSpeed: period.windSpeed,
+            windDirection: period.windDirection,
+            isDaytime: period.isDaytime  // Add isDaytime for night detection
+        }));
+    } catch (error) {
+        console.error('Error getting hourly forecast:', error.message);
+        return [];
+    }
+}
+
+// NEW FUNCTION: Get daily forecast (next 7 days)
+async function getDailyForecast(forecastUrl) {
+    try {
+        const response = await axios.get(forecastUrl, {
+            headers: {
+                'User-Agent': 'WeatherDashboardApp/1.0'
+            }
+        });
+        
+        // Get the next 7 days (14 periods = 7 days x 2 periods per day)
+        const periods = response.data.properties.periods.slice(0, 14);
+        
+        return periods.map(period => ({
+            name: period.name,              // e.g., "Tonight", "Wednesday", "Wednesday Night"
+            temperature: period.temperature,
+            temperatureUnit: period.temperatureUnit,
+            shortForecast: period.shortForecast,
+            detailedForecast: period.detailedForecast,
+            isDaytime: period.isDaytime
+        }));
+    } catch (error) {
+        console.error('Error getting daily forecast:', error.message);
+        return [];
+    }
+}
+
+
 
 // Helper function to get nearest observation station
 async function getNearestStation(stationsUrl) {
@@ -114,7 +175,42 @@ function mpsToMph(mps) {
 }
 
 // API Routes
-
+app.get('/api/cities/search', async (req, res) => {
+    const { q } = req.query;
+    
+    // Return empty array if query is too short
+    if (!q || q.length < 2) {
+        return res.json({ cities: [] });
+    }
+    
+    try {
+        // Search for cities that start with the query (case-insensitive)
+        // Limit to 4 results
+        const result = await pool.query(
+            `SELECT city, state_id, state_name, lat, lng 
+             FROM cities 
+             WHERE LOWER(city) LIKE LOWER($1)
+             LIMIT 4`,
+            [`${q}%`]
+        );
+        
+        // Format the results for the frontend
+        const cities = result.rows.map(row => ({
+            city: row.city,
+            state: row.state_id,
+            stateName: row.state_name,
+            display: `${row.city}, ${row.state_id}`,
+            lat: parseFloat(row.lat),
+            lng: parseFloat(row.lng)
+        }));
+        
+        res.json({ cities });
+        
+    } catch (error) {
+        console.error('Error searching cities:', error);
+        res.status(500).json({ error: 'Failed to search cities' });
+    }
+});
 // Get current weather for a city
 app.get('/api/weather', async (req, res) => {
     const { city } = req.query;
@@ -136,11 +232,11 @@ app.get('/api/weather', async (req, res) => {
         // Extract city name from display name
         const cityName = displayName.split(',')[0];
         
-        // Step 2: Get observation stations URL from weather.gov
-        const stationsUrl = await getWeatherForecastUrl(latitude, longitude);
+        // Step 2: Get all weather endpoints from weather.gov
+        const endpoints = await getWeatherEndpoints(latitude, longitude);
         
-        // Step 3: Get nearest observation station
-        const stationId = await getNearestStation(stationsUrl);
+        // Step 3: Get nearest observation station for current weather
+        const stationId = await getNearestStation(endpoints.observationStations);
         
         // Step 4: Get current observations from the station
         const observationUrl = `${stationId}/observations/latest`;
@@ -152,7 +248,7 @@ app.get('/api/weather', async (req, res) => {
         
         const observation = observationResponse.data.properties;
         
-        // Extract weather data
+        // Extract current weather data
         const temperatureCelsius = observation.temperature.value;
         const temperature = temperatureCelsius !== null ? celsiusToFahrenheit(temperatureCelsius) : null;
         const humidity = observation.relativeHumidity.value !== null ? Math.round(observation.relativeHumidity.value) : null;
@@ -164,19 +260,27 @@ app.get('/api/weather', async (req, res) => {
             return res.status(503).json({ error: 'Weather data temporarily unavailable for this location' });
         }
         
+        // Step 5: Get forecast data (hourly and daily) - make these calls in parallel
+        const [hourlyForecast, dailyForecast] = await Promise.all([
+            getHourlyForecast(endpoints.forecastHourly),
+            getDailyForecast(endpoints.forecast)
+        ]);
+        
         // Store search in database
         await pool.query(
             'INSERT INTO searches (city, temperature, timestamp) VALUES ($1, $2, NOW())',
             [cityName, temperature]
         );
         
-        // Return weather data (converting to format expected by frontend)
+        // Return weather data with forecasts
         res.json({
             city: cityName,
             temperature: temperature,
             description: description.toLowerCase(),
             humidity: humidity,
-            windSpeed: windSpeed
+            windSpeed: windSpeed,
+            hourlyForecast: hourlyForecast,    // NEW: next 12 hours
+            dailyForecast: dailyForecast        // NEW: next 7 days
         });
         
     } catch (error) {
