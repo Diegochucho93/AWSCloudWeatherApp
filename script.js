@@ -132,6 +132,9 @@ function showGuestUI() {
     
     // Hide user-specific sections
     if (savedCitiesSection) savedCitiesSection.classList.add('hidden');
+    
+    // Show placeholder for guests
+    showWeatherPlaceholder();
 }
 // ============================================
 // AUTH DROPDOWN TOGGLE & SWITCHING
@@ -384,15 +387,73 @@ async function loadDefaultCity() {
                 // Auto-load default city weather
                 const cityQuery = `${prefs.default_city}, ${prefs.default_state}`;
                 cityInput.value = cityQuery;
-                searchWeather();
+                
+                // Set selected city data for the search
+                selectedCityData = {
+                    city: prefs.default_city,
+                    state: prefs.default_state,
+                    lat: null, // Will be fetched from API
+                    lng: null
+                };
+                
+                // Trigger search
+                await searchWeather();
+            } else {
+                // No default city set - show placeholder
+                showWeatherPlaceholder();
             }
+        } else {
+            // Failed to load preferences - show placeholder
+            showWeatherPlaceholder();
         }
     } catch (error) {
         console.error('Error loading default city:', error);
+        showWeatherPlaceholder();
     }
     
     // Load saved cities
     loadSavedCities();
+}
+
+// Show placeholder in weather layout when no city is searched
+function showWeatherPlaceholder() {
+    // Hide error and show weather layout
+    hideError();
+    if (weatherLayout) {
+        weatherLayout.classList.remove('hidden');
+    }
+    
+    // Set placeholder content in current weather card
+    document.getElementById('cityName').textContent = '';
+    document.getElementById('temperature').innerHTML = '<i data-lucide="search" class="placeholder-icon"></i>';
+    document.getElementById('description').textContent = 'Search for a city to view weather data';
+    document.getElementById('humidity').textContent = '';
+    document.getElementById('windSpeed').textContent = '';
+    
+    // Set placeholder content in hourly forecast
+    if (hourlyContainer) {
+        hourlyContainer.innerHTML = `
+            <div class="forecast-placeholder">
+                <i data-lucide="clock" class="placeholder-icon-small"></i>
+                <p>Hourly forecast will appear here</p>
+            </div>
+        `;
+    }
+    
+    // Set placeholder content in daily forecast
+    if (dailyContainer) {
+        dailyContainer.innerHTML = `
+            <div class="forecast-placeholder">
+                <i data-lucide="calendar" class="placeholder-icon-small"></i>
+                <p>7-day forecast will appear here</p>
+            </div>
+        `;
+    }
+    
+    // Re-initialize lucide icons
+    if (typeof lucide !== 'undefined') {
+        lucide.createIcons();
+    }
 }
 
 // Load user data (saved cities and search history)

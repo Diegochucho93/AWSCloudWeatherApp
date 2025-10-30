@@ -1874,3 +1874,64 @@ tbody tr:last-child td {
     margin: 0.8rem 0;
     line-height: 1;
 }
+
+/* ============================================
+   WEATHER PLACEHOLDER STYLES
+   ============================================ */
+
+/* Placeholder icon in current weather card (large) */
+.placeholder-icon {
+    width: 8rem;
+    height: 8rem;
+    color: rgba(255, 255, 255, 0.3);
+    stroke-width: 1.5;
+    margin: 2rem auto;
+    display: block;
+}
+
+@media only screen and (min-width: 768px) {
+    .placeholder-icon {
+        width: 10rem;
+        height: 10rem;
+    }
+}
+
+/* Placeholder container for forecast boxes */
+.forecast-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1.5rem;
+    padding: 4rem 2rem;
+    min-height: 20rem;
+    width: 100%;
+}
+
+.forecast-placeholder p {
+    font-size: 1.6rem;
+    color: rgba(255, 255, 255, 0.5);
+    text-align: center;
+    font-weight: 400;
+    letter-spacing: -0.01em;
+}
+
+/* Placeholder icon in forecast boxes (small) */
+.placeholder-icon-small {
+    width: 4rem;
+    height: 4rem;
+    color: rgba(255, 255, 255, 0.3);
+    stroke-width: 1.5;
+}
+
+/* Make description text more prominent in placeholder state */
+.current-weather-card .description {
+    font-size: 2rem;
+    line-height: 1.4;
+}
+
+@media only screen and (min-width: 768px) {
+    .current-weather-card .description {
+        font-size: 2.4rem;
+    }
+}
